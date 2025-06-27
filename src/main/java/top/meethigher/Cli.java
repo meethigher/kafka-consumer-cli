@@ -5,6 +5,7 @@ import ch.qos.logback.classic.joran.JoranConfigurator;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
@@ -144,6 +145,7 @@ public class Cli {
             }
         } catch (Exception e) {
             getLogger().error("Error while querying the end offset", e);
+            System.exit(1);
         }
 
 
@@ -171,6 +173,7 @@ public class Cli {
             }
         } catch (Exception e) {
             getLogger().error("Error while consuming", e);
+            System.exit(1);
         }
     }
 
@@ -189,13 +192,22 @@ public class Cli {
             consumer.subscribe(list);
             System.out.print("Enter the offset you want to set: ");
             long offset = scanner.nextLong();
+            // 先poll一次，触发分区分配
             // 获取分配当前消费者的topic分区。因为只能设置分配给自己的topic分区
-            Set<TopicPartition> assignment = consumer.assignment();
-            for (TopicPartition topicPartition : assignment) {
-                consumer.seek(topicPartition, offset);
+            Set<TopicPartition> assignment = Collections.emptySet();
+            while (assignment.isEmpty()) {
+                consumer.poll(Duration.ofMillis(1000));
+                assignment = consumer.assignment();
+            }
+            // 对每个分区调用seek，从指定offset开始消费
+            for (TopicPartition tp : assignment) {
+                consumer.seek(tp, offset);
+                consumer.commitSync(Collections.singletonMap(tp, new OffsetAndMetadata(offset)));
+                System.out.printf("Seek partition %d to offset %d%n", tp.partition(), offset);
             }
         } catch (Exception e) {
             getLogger().error("Error while setting offset", e);
+            System.exit(1);
         }
     }
 
