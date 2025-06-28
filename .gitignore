@@ -1,0 +1,5 @@
+.idea/
+logback.xml
+logs
+target/
+!*/**/logback.xml
