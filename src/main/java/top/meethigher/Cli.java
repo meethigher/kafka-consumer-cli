@@ -186,12 +186,18 @@ public class Cli {
             getLogger().error("Error while reading kafka.properties", e);
             System.exit(1);
         }
+        System.out.print("Enter whether you want to set the endOffset in bulk (true/false): ");
+        boolean inBulk = scanner.nextBoolean();
         System.out.print("Enter the topic you want to subscribe (eg: topicA,topicB,topicC): ");
         try (KafkaConsumer<String, String> consumer = new KafkaConsumer<String, String>(properties)) {
             List<String> list = Arrays.asList(scanner.next().split(","));
             consumer.subscribe(list);
-            System.out.print("Enter the offset you want to set: ");
-            long offset = scanner.nextLong();
+
+            long offset = 0;
+            if (inBulk) {
+                System.out.print("Enter the offset you want to set: ");
+                offset = scanner.nextLong();
+            }
             // 先poll一次，触发分区分配
             // 获取分配当前消费者的topic分区。因为只能设置分配给自己的topic分区
             Set<TopicPartition> assignment = Collections.emptySet();
@@ -201,6 +207,10 @@ public class Cli {
             }
             // 对每个分区调用seek，从指定offset开始消费
             for (TopicPartition tp : assignment) {
+                if (!inBulk) {
+                    System.out.print("Enter the offset you want to set for partition " + tp.partition() + ": ");
+                    offset = scanner.nextLong();
+                }
                 consumer.seek(tp, offset);
                 consumer.commitSync(Collections.singletonMap(tp, new OffsetAndMetadata(offset)));
                 System.out.printf("Seek partition %d to offset %d%n", tp.partition(), offset);
