@@ -1,4 +1,4 @@
-package top.meethigher;
+package top.meethigher.kafka.cli;
 
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.joran.JoranConfigurator;
@@ -10,6 +10,8 @@ import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import top.meethigher.kafka.Record;
+import top.meethigher.kafka.cli.tools.HttpConsumer;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -169,15 +171,31 @@ public class Cli {
             getLogger().error("Error while reading kafka.properties", e);
             System.exit(1);
         }
+        System.out.print("Enter whether you want to consume data via HTTP (true/false): ");
+        boolean http = scanner.nextBoolean();
+        HttpConsumer httpConsumer = null;
+        if (http) {
+            System.out.print("Enter HTTP url: ");
+            String url = scanner.next();
+            System.out.print("Enter max cached size: ");
+            int maxSize = scanner.nextInt();
+            System.out.print("Enter max cached time (ms): ");
+            long mills = scanner.nextLong();
+            httpConsumer = new HttpConsumer(maxSize, mills, url);
+        }
         System.out.print("Enter the topic you want to subscribe (eg: topicA,topicB,topicC): ");
         try (KafkaConsumer<String, String> consumer = new KafkaConsumer<String, String>(properties)) {
             List<String> list = Arrays.asList(scanner.next().split(","));
             consumer.subscribe(list);
             while (true) {
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
-                for (ConsumerRecord<String, String> record : records) {
-                    System.out.printf("topic=%s, partition=%d, offset=%d, key=%s, value=%s%n",
-                            record.topic(), record.partition(), record.offset(), record.key(), record.value());
+                for (ConsumerRecord<String, String> t : records) {
+                    Record record = new Record(t.topic(), t.partition(), t.offset(), t.key(), t.value(), t.timestamp(), t.timestampType().name());
+                    if (http) {
+                        httpConsumer.add(record);
+                    } else {
+                        System.out.println(record);
+                    }
                 }
             }
         } catch (Exception e) {

@@ -1,0 +1,18 @@
+server:
+  port: 6666
+spring:
+  main:
+    banner-mode: off
+logging:
+  config: classpath:log.xml
+  home: ./logs/server
+
+jdbc:
+  # postgresql
+#  url: jdbc:postgresql://10.0.0.9:5432/kafka-records
+#  username: postgres
+#  password: postgres
+  # sqlite
+  url: jdbc:sqlite:D:/Desktop/temp.db
+  username: test
+  password: test
