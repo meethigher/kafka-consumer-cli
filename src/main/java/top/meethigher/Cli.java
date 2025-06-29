@@ -143,7 +143,10 @@ public class Cli {
                     topicPartitions.add(topicPartition);
                 }
                 // 查询topic分区的endoffset，即使不属于当前消费者。并按照partition进行升序排序
-                Map<TopicPartition, Long> sortedMap = new TreeMap<>(Comparator.comparingInt(TopicPartition::partition));
+                Map<TopicPartition, Long> sortedMap = new TreeMap<>((o1, o2) -> {
+                    // 若比较结果为0，则会判定是同一个值。该问题影响TreeSet和TreeMap
+                    return o1.toString().compareTo(o2.toString());
+                });
                 sortedMap.putAll(consumer.endOffsets(topicPartitions));
                 for (TopicPartition partition : sortedMap.keySet()) {
                     System.out.printf("topic=%s, partition=%d, endOffset=%d%n", topic, partition.partition(), sortedMap.get(partition));
@@ -212,7 +215,10 @@ public class Cli {
                 assignment = consumer.assignment();
             }
             // 对每个分区调用seek，从指定offset开始消费。并按照partition升序进行设置
-            Set<TopicPartition> sortedAssignment = new TreeSet<>(Comparator.comparingInt(TopicPartition::partition));
+            Set<TopicPartition> sortedAssignment = new TreeSet<>((o1, o2) -> {
+                // 若比较结果为0，则会判定是同一个值。该问题影响TreeSet和TreeMap
+                return o1.toString().compareTo(o2.toString());
+            });
             sortedAssignment.addAll(assignment);
             for (TopicPartition tp : sortedAssignment) {
                 if (!inBulk) {
@@ -221,7 +227,7 @@ public class Cli {
                 }
                 consumer.seek(tp, offset);
                 consumer.commitSync(Collections.singletonMap(tp, new OffsetAndMetadata(offset)));
-                System.out.printf("Seek partition %d to offset %d%n", tp.partition(), offset);
+                System.out.printf("Seek topic %s partition %d to offset %d%n", tp.topic(), tp.partition(), offset);
             }
         } catch (Exception e) {
             getLogger().error("Error while setting offset", e);
@@ -242,23 +248,24 @@ public class Cli {
         try (KafkaConsumer<String, String> consumer = new KafkaConsumer<>(properties)) {
             List<String> list = Arrays.asList(scanner.next().split(","));
             consumer.subscribe(list);
-            for (String topic : list) {
-                // 先poll一次，触发分区分配
-                // 获取分配当前消费者的topic分区。因为只能设置分配给自己的topic分区
-                Set<TopicPartition> assignment = Collections.emptySet();
-                while (assignment.isEmpty()) {
-                    consumer.poll(Duration.ofMillis(1000));
-                    assignment = consumer.assignment();
-                }
-                // 查询topic分区的endoffset，即使不属于当前消费者。并按照partition进行升序排序
-                Map<TopicPartition, Long> sortedMap = new TreeMap<>(Comparator.comparingInt(TopicPartition::partition));
-                sortedMap.putAll(consumer.endOffsets(assignment));
-                for (TopicPartition tp : sortedMap.keySet()) {
-                    Long offset = sortedMap.get(tp);
-                    consumer.seek(tp, offset);
-                    consumer.commitSync(Collections.singletonMap(tp, new OffsetAndMetadata(offset)));
-                    System.out.printf("Seek partition %d to offset %d%n", tp.partition(), offset);
-                }
+            // 先poll一次，触发分区分配
+            // 获取分配当前消费者的topic分区。因为只能设置分配给自己的topic分区
+            Set<TopicPartition> assignment = Collections.emptySet();
+            while (assignment.isEmpty()) {
+                consumer.poll(Duration.ofMillis(1000));
+                assignment = consumer.assignment();
+            }
+            // 查询topic分区的endoffset，即使不属于当前消费者。并按照partition进行升序排序
+            Map<TopicPartition, Long> sortedMap = new TreeMap<>((o1, o2) -> {
+                // 若比较结果为0，则会判定是同一个值。该问题影响TreeSet和TreeMap
+                return o1.toString().compareTo(o2.toString());
+            });
+            sortedMap.putAll(consumer.endOffsets(assignment));
+            for (TopicPartition tp : sortedMap.keySet()) {
+                Long offset = sortedMap.get(tp);
+                consumer.seek(tp, offset);
+                consumer.commitSync(Collections.singletonMap(tp, new OffsetAndMetadata(offset)));
+                System.out.printf("Seek topic %s partition %d to offset %d%n", tp.topic(), tp.partition(), offset);
             }
         } catch (Exception e) {
             getLogger().error("Error while querying the end offset", e);
