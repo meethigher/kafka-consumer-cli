@@ -10,6 +10,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import javax.sql.DataSource;
 
@@ -23,18 +24,25 @@ public class Server {
 
     @Value("${jdbc.url}")
     private String url;
-    @Value(("${jdbc.username}"))
+    @Value("${jdbc.username}")
     private String username;
-    @Value(("${jdbc.password}"))
+    @Value("${jdbc.password}")
     private String password;
+
+    @Value("${jdbc.pooled:true}")
+    private boolean pooled;
 
     @Bean
     public DataSource dataSource() {
-        HikariConfig config = new HikariConfig();
-        config.setJdbcUrl(url);
-        config.setUsername(username);
-        config.setPassword(password);
-        return new HikariDataSource(config);
+        if (pooled) {
+            HikariConfig config = new HikariConfig();
+            config.setJdbcUrl(url);
+            config.setUsername(username);
+            config.setPassword(password);
+            return new HikariDataSource(config);
+        } else {
+            return new DriverManagerDataSource(url, username, password);
+        }
     }
 
     @Bean

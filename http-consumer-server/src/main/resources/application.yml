@@ -8,11 +8,18 @@ logging:
   home: ./logs/server
 
 jdbc:
-  # postgresql
-#  url: jdbc:postgresql://10.0.0.9:5432/kafka-records
-#  username: postgres
-#  password: postgres
-  # sqlite
-  url: jdbc:sqlite:D:/Desktop/temp.db
-  username: test
-  password: test
+  # 池化连接。像duckdb不支持池化
+  pooled: true
+  sync: false
+  # postgresql 支持并发写入
+  url: jdbc:postgresql://10.0.0.9:5432/kafka-records
+  username: postgres
+  password: postgres
+  # duckdb 轻量文件库，列式存储库，不支持并发写入。对并发查询支持友好
+#  url: jdbc:duckdb:D:/Desktop/temp.db
+#  username: test
+#  password: test
+  # sqlite 轻量文件库，行式存储库，不支持并发写入，并发查询略差于duckdb
+#  url: jdbc:sqlite:D:/Desktop/temp.db
+#  username: test
+#  password: test
