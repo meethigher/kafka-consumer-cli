@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
  * 发送与接收方的服务规定
  *
  *
- * <pre>{@code curl -L "http://127.0.0.1:8080/kafka/records" \
+ * <pre>{@code curl -X POST -L "http://127.0.0.1:8080/kafka/records" \
  * -H "Content-Type: application/json" \
  * -d "[
  *     {
@@ -31,7 +31,7 @@ import java.util.concurrent.TimeUnit;
  *     }
  * ]" }</pre>
  */
-public class HttpConsumer extends AutoFlushList<Record> {
+public class HttpConsumer extends FlushQueue<Record> {
 
     private static final Logger log = LoggerFactory.getLogger(HttpConsumer.class);
 
@@ -43,21 +43,17 @@ public class HttpConsumer extends AutoFlushList<Record> {
     }
 
     @Override
-    protected void onFlush(ConcurrentLinkedQueue<Record> batch) {
-        try {
-            int size = batch.size();
-            RequestBody body = RequestBody.create(MediaType.parse("application/json"), JSON.toJSONString(batch));
-            Request request = new Request.Builder()
-                    .url(url)
-                    .post(body)
-                    .build();
-            try (Response response = okHttpClient().newCall(request).execute()) {
-                if (response.isSuccessful()) {
-                    log.info("http onFlush successful, size {}", size);
-                }
+    protected void onFlush(ConcurrentLinkedQueue<Record> batch) throws Exception {
+        int size = batch.size();
+        RequestBody body = RequestBody.create(MediaType.parse("application/json"), JSON.toJSONString(batch));
+        Request request = new Request.Builder()
+                .url(url)
+                .post(body)
+                .build();
+        try (Response response = okHttpClient().newCall(request).execute()) {
+            if (response.isSuccessful()) {
+                log.info("http onFlush successful, size {}", size);
             }
-        } catch (Exception e) {
-            log.error("http onFlush error", e);
         }
     }
 
